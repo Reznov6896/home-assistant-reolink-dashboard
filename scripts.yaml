@@ -1,0 +1,130 @@
+# Camera dashboard scripts, to add to scripts.yaml.
+# camera_ptz_*: 250 ms pulse then Stop (the integration's PTZ buttons start a CONTINUOUS move).
+# camera_take_snapshot / camera_record_clip: manual capture; if privacy mode is on, it is lifted for the
+#   capture and restored. Files go to /media/reolink (add it to allowlist_external_dirs).
+camera_ptz_up:
+  alias: Camera - PTZ pulse up
+  icon: mdi:arrow-up-bold
+  mode: single
+  max_exceeded: silent
+  sequence:
+  - action: button.press
+    target:
+      entity_id: button.living_room_ptz_up
+  - delay:
+      milliseconds: 250
+  - action: button.press
+    target:
+      entity_id: button.living_room_ptz_stop
+camera_ptz_down:
+  alias: Camera - PTZ pulse down
+  icon: mdi:arrow-down-bold
+  mode: single
+  max_exceeded: silent
+  sequence:
+  - action: button.press
+    target:
+      entity_id: button.living_room_ptz_down
+  - delay:
+      milliseconds: 250
+  - action: button.press
+    target:
+      entity_id: button.living_room_ptz_stop
+camera_ptz_left:
+  alias: Camera - PTZ pulse left
+  icon: mdi:arrow-left-bold
+  mode: single
+  max_exceeded: silent
+  sequence:
+  - action: button.press
+    target:
+      entity_id: button.living_room_ptz_left
+  - delay:
+      milliseconds: 250
+  - action: button.press
+    target:
+      entity_id: button.living_room_ptz_stop
+camera_ptz_right:
+  alias: Camera - PTZ pulse right
+  icon: mdi:arrow-right-bold
+  mode: single
+  max_exceeded: silent
+  sequence:
+  - action: button.press
+    target:
+      entity_id: button.living_room_ptz_right
+  - delay:
+      milliseconds: 250
+  - action: button.press
+    target:
+      entity_id: button.living_room_ptz_stop
+
+camera_take_snapshot:
+  alias: Camera - take snapshot
+  icon: mdi:camera
+  mode: single
+  max_exceeded: silent
+  variables:
+    was_private: "{{ is_state('switch.living_room_privacy_mode', 'on') }}"
+    file: "/media/reolink/photo_{{ now().strftime('%Y%m%d_%H%M%S') }}.jpg"
+  sequence:
+  - if: "{{ was_private }}"
+    then:
+    - action: switch.turn_off
+      target:
+        entity_id: switch.living_room_privacy_mode
+    - wait_template: "{{ states('camera.living_room_snapshots_clear') not in ['unavailable', 'unknown'] }}"
+      timeout:
+        seconds: 45
+    - delay:
+        seconds: 10
+  - action: camera.snapshot
+    continue_on_error: true
+    target:
+      entity_id: camera.living_room_snapshots_clear
+    data:
+      filename: "{{ file }}"
+  - if: "{{ was_private }}"
+    then:
+    - action: switch.turn_on
+      target:
+        entity_id: switch.living_room_privacy_mode
+  - action: persistent_notification.create
+    data:
+      title: Camera
+      message: "Snapshot saved: {{ file }}"
+camera_record_clip:
+  alias: Camera - record 2 minutes
+  icon: mdi:record-rec
+  mode: single
+  max_exceeded: silent
+  variables:
+    was_private: "{{ is_state('switch.living_room_privacy_mode', 'on') }}"
+    file: "/media/reolink/video_{{ now().strftime('%Y%m%d_%H%M%S') }}.mp4"
+  sequence:
+  - if: "{{ was_private }}"
+    then:
+    - action: switch.turn_off
+      target:
+        entity_id: switch.living_room_privacy_mode
+    - wait_template: "{{ states('camera.living_room_clear') not in ['unavailable', 'unknown'] }}"
+      timeout:
+        seconds: 60
+    - delay:
+        seconds: 25
+  - action: camera.record
+    continue_on_error: true
+    target:
+      entity_id: camera.living_room_clear
+    data:
+      filename: "{{ file }}"
+      duration: 120
+  - if: "{{ was_private }}"
+    then:
+    - action: switch.turn_on
+      target:
+        entity_id: switch.living_room_privacy_mode
+  - action: persistent_notification.create
+    data:
+      title: Camera
+      message: "Clip saved: {{ file }}"

@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 750" width="880" height="750" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <title id="title">Camera arming: three states and the proof required to move between them</title>
+  <desc id="desc">Arming means turning privacy mode off. Three states. PRIVATE: privacy mode on, the camera neither records nor detects. ARMED: privacy mode off, it records and detects people. GRACE 45 s: the door opened while nobody is confirmed home, the camera is awake and waits for someone to be confirmed. From PRIVATE to ARMED, two paths, each guarded by "presence known": 1, departure, whole household away for 4 minutes; 2, router safety net, home empty for 45 minutes according to the router, no recent GPS fix at home, and the door opened just before. From ARMED to PRIVATE: someone arrives, immediately, no other proof. From ARMED to GRACE: the door opens while nobody is confirmed. From GRACE to PRIVATE: someone is confirmed within 45 seconds, no alert. From GRACE to ARMED: 45 seconds with nobody, the camera stays armed and a message is sent. If presence is unknown, nothing arms and a "presence unknown" message is sent after 5 minutes. While ARMED, the intrusion alert: a person detected by the camera, 45 seconds grace, the alert text is sent alone, then 3 photos and 120 seconds of video. If it stays stuck for more than 10 minutes, another automation restarts it and reports it.</desc>
+  <style>
+    .surface { fill: #fcfcfb; }
+    .t1 { fill: #0b0b0b; }
+    .t2 { fill: #52514e; }
+    .acc { fill: #186b62; }
+    .b1 { fill: none; stroke: #3d3c39; stroke-width: 1.4; }
+    .guard { fill: none; stroke: #186b62; stroke-width: 1.4; stroke-dasharray: 5 4; }
+    .fl { stroke: #52514e; stroke-width: 1.6; fill: none; }
+    .tip { fill: #52514e; }
+    .arm-line { stroke: #eb6834; stroke-width: 2; fill: none; }
+    .arm-text { fill: #b5441a; }
+    .arm-tip { fill: #eb6834; }
+    .priv-line { stroke: #2a78d6; stroke-width: 2; fill: none; }
+    .priv-text { fill: #1f62b3; }
+    .priv-tip { fill: #2a78d6; }
+    .mono { font-family: ui-monospace, 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', monospace; }
+    @media (prefers-color-scheme: dark) {
+      .surface { fill: #1a1a19; }
+      .t1 { fill: #ffffff; }
+      .t2 { fill: #c3c2b7; }
+      .acc { fill: #4fb3a5; }
+      .b1 { stroke: #c3c2b7; }
+      .guard { stroke: #4fb3a5; }
+      .fl { stroke: #c3c2b7; }
+      .tip { fill: #c3c2b7; }
+      .arm-line { stroke: #d95926; }
+      .arm-text { fill: #f2905f; }
+      .arm-tip { fill: #d95926; }
+      .priv-line { stroke: #3987e5; }
+      .priv-text { fill: #7fb2f0; }
+      .priv-tip { fill: #3987e5; }
+    }
+  </style>
+  <defs>
+    <marker id="pn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="tip" d="M0 0 L10 5 L0 10 z"/></marker>
+    <marker id="pa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="arm-tip" d="M0 0 L10 5 L0 10 z"/></marker>
+    <marker id="pp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="priv-tip" d="M0 0 L10 5 L0 10 z"/></marker>
+  </defs>
+
+  <rect class="surface" x="0" y="0" width="880" height="750" rx="8"/>
+
+  <text class="t1" x="28" y="38" font-size="18" font-weight="600">Camera arming</text>
+  <text class="t2" x="28" y="60" font-size="12.5">Arm = turn privacy mode off. Disarming needs no proof; arming always needs one.</text>
+
+  <!-- Guard shared by every arming arrow -->
+  <rect class="guard" x="28" y="78" width="824" height="58" rx="4"/>
+  <text class="t1" x="44" y="101" font-size="12.5" font-weight="600">Guard on every orange arrow: presence must be known.</text>
+  <text class="t2" x="44" y="122" font-size="12">Every person in a known state. Otherwise nothing arms, and a "presence unknown" message is sent after 5 min.</text>
+
+  <!-- The two main states -->
+  <rect class="priv-line" x="40" y="168" width="200" height="190" rx="6"/>
+  <g text-anchor="middle">
+    <text class="priv-text mono" x="140" y="236" font-size="15" font-weight="700">PRIVATE</text>
+    <text class="t1" x="140" y="264" font-size="12">privacy mode on</text>
+    <text class="t2" x="140" y="284" font-size="12">the camera neither</text>
+    <text class="t2" x="140" y="300" font-size="12">records nor detects</text>
+  </g>
+
+  <rect class="arm-line" x="640" y="168" width="200" height="190" rx="6"/>
+  <g text-anchor="middle">
+    <text class="arm-text mono" x="740" y="236" font-size="15" font-weight="700">ARMED</text>
+    <text class="t1" x="740" y="264" font-size="12">privacy mode off</text>
+    <text class="t2" x="740" y="284" font-size="12">records and detects</text>
+    <text class="t2" x="740" y="300" font-size="12">people</text>
+  </g>
+
+  <!-- 1 · Departure -->
+  <text class="arm-text" x="440" y="196" font-size="12" font-weight="600" text-anchor="middle">1 · Departure: whole household "away" for 4 min</text>
+  <line class="arm-line" x1="242" y1="210" x2="636" y2="210" marker-end="url(#pa)"/>
+
+  <!-- 2 · Router safety net -->
+  <text class="arm-text" x="440" y="240" font-size="12" font-weight="600" text-anchor="middle">2 · Router safety net: home empty for 45 min,</text>
+  <text class="t2" x="440" y="256" font-size="12" text-anchor="middle">no recent GPS fix at home, door opened just before</text>
+  <line class="arm-line" x1="242" y1="270" x2="636" y2="270" marker-end="url(#pa)"/>
+
+  <!-- Arrival -->
+  <text class="priv-text" x="440" y="304" font-size="12" font-weight="600" text-anchor="middle">Someone arrives: back to private,</text>
+  <text class="t2" x="440" y="320" font-size="12" text-anchor="middle">immediately, no other proof</text>
+  <line class="priv-line" x1="638" y1="334" x2="244" y2="334" marker-end="url(#pp)"/>
+
+  <!-- Grace -->
+  <rect class="b1" x="640" y="440" width="200" height="110" rx="6"/>
+  <g text-anchor="middle">
+    <text class="acc mono" x="740" y="470" font-size="14" font-weight="700">GRACE 45 s</text>
+    <text class="t1" x="740" y="494" font-size="12">the camera is awake,</text>
+    <text class="t2" x="740" y="512" font-size="12">waiting for someone</text>
+    <text class="t2" x="740" y="528" font-size="12">to be confirmed home</text>
+  </g>
+
+  <!-- Armed -> Grace: the door -->
+  <line class="fl" x1="700" y1="360" x2="700" y2="436" marker-end="url(#pn)"/>
+  <text class="t1" x="690" y="394" font-size="12" text-anchor="end">Door opened,</text>
+  <text class="t2" x="690" y="410" font-size="12" text-anchor="end">nobody confirmed</text>
+
+  <!-- Grace -> Armed: 45 s elapsed -->
+  <line class="arm-line" x1="790" y1="438" x2="790" y2="362" marker-end="url(#pa)"/>
+  <text class="arm-text" x="798" y="404" font-size="12" font-weight="600">45 s</text>
+  <text class="t2" x="840" y="574" font-size="12" text-anchor="end">After 45 s with nobody: it stays armed, and a message is sent.</text>
+
+  <!-- Grace -> Private: someone confirmed -->
+  <path class="priv-line" d="M638 496 L140 496 L140 362" marker-end="url(#pp)"/>
+  <text class="priv-text" x="390" y="486" font-size="12" font-weight="600" text-anchor="middle">Someone confirmed within 45 s: back to private, no alert</text>
+
+  <!-- Intrusion alert -->
+  <text class="acc mono" x="40" y="622" font-size="12.5" font-weight="700">While ARMED: the intrusion alert, in two stages</text>
+  <g text-anchor="middle" font-size="11.5">
+    <rect class="b1" x="40" y="636" width="176" height="60" rx="3"/>
+    <text class="t1" x="128" y="661">Person detected</text>
+    <text class="t2" x="128" y="679">by the camera (guard)</text>
+
+    <rect class="b1" x="252" y="636" width="176" height="60" rx="3"/>
+    <text class="t1" x="340" y="661">45 s grace:</text>
+    <text class="t2" x="340" y="679">someone home? stop</text>
+
+    <rect class="b1" x="464" y="636" width="176" height="60" rx="3"/>
+    <text class="t1" x="552" y="661">the alert text</text>
+    <text class="t2" x="552" y="679">is sent alone, first</text>
+
+    <rect class="b1" x="676" y="636" width="176" height="60" rx="3"/>
+    <text class="t1" x="764" y="661">3 photos, then</text>
+    <text class="t2" x="764" y="679">120 s of video</text>
+  </g>
+  <line class="fl" x1="218" y1="666" x2="248" y2="666" marker-end="url(#pn)"/>
+  <line class="fl" x1="430" y1="666" x2="460" y2="666" marker-end="url(#pn)"/>
+  <line class="fl" x1="642" y1="666" x2="672" y2="666" marker-end="url(#pn)"/>
+  <text class="t2" x="40" y="726" font-size="11.5">Stuck for more than 10 min (video hung): another automation restarts it and reports it.</text>
+</svg>

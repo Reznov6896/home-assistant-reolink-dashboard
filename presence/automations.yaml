@@ -1,0 +1,378 @@
+# =============================================================================
+#  Presence-based camera arming: five automations (EXPERIMENTAL)
+# =============================================================================
+#  Paste into `automations.yaml` (they stay editable in the UI). They rely on
+#  the template sensors in `templates.yaml`.
+#
+#  Vocabulary:
+#    arm    = turn privacy mode OFF (the camera records and detects);
+#    disarm = turn privacy mode ON (streams and detection off).
+#
+#  Shared rules:
+#    - disarming needs no proof; arming always needs one;
+#    - every branch that arms requires `binary_sensor.presence_known` = on:
+#      when in doubt, do not arm;
+#    - arming on router data additionally requires proof of departure: the door.
+#
+#  Messages go through Home Assistant's Telegram integration, to the bot's
+#  default chat.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. Privacy mode follows presence and the front door
+# -----------------------------------------------------------------------------
+- id: camera_privacy_presence_door
+  alias: Security - Camera privacy mode (presence + door)
+  description: >-
+    Arrival: privacy on. Whole household away: camera armed. Door opened while
+    nobody is confirmed home: camera woken up, 45 s grace, then a message if
+    nobody came home.
+  triggers:
+    - id: door
+      trigger: state
+      entity_id: binary_sensor.front_door
+      to: "on"
+    # 4 min: do not arm on a short absence.
+    - id: departure
+      trigger: state
+      entity_id:
+        - person.person_a
+        - person.person_b
+      to: not_home
+      for:
+        minutes: 4
+    - id: arrival
+      trigger: state
+      entity_id:
+        - person.person_a
+        - person.person_b
+      to: home
+  conditions: []
+  actions:
+    - choose:
+        # Arrival: disarm immediately, no other proof needed.
+        - conditions:
+            - condition: trigger
+              id: arrival
+          sequence:
+            - action: switch.turn_on
+              target:
+                entity_id: switch.living_room_privacy_mode
+
+        # Departure: arm only if presence is known AND nobody is home.
+        - conditions:
+            - condition: trigger
+              id: departure
+            - condition: state
+              entity_id: binary_sensor.presence_known
+              state: "on"
+            - condition: template
+              value_template: >-
+                {{ not (is_state('person.person_a', 'home')
+                        or is_state('person.person_b', 'home')) }}
+          sequence:
+            - action: switch.turn_off
+              target:
+                entity_id: switch.living_room_privacy_mode
+
+        # Door opened, someone is home: stay (or go back) private.
+        - conditions:
+            - condition: trigger
+              id: door
+            - condition: template
+              value_template: >-
+                {{ is_state('person.person_a', 'home')
+                   or is_state('person.person_b', 'home') }}
+          sequence:
+            - action: switch.turn_on
+              target:
+                entity_id: switch.living_room_privacy_mode
+
+        # Door opened, nobody confirmed: wake the camera, then 45 s grace.
+        # Coming home, the door opens a few seconds BEFORE the phone rejoins Wi-Fi.
+        - conditions:
+            - condition: trigger
+              id: door
+            - condition: state
+              entity_id: binary_sensor.presence_known
+              state: "on"
+            - condition: template
+              value_template: >-
+                {{ not (is_state('person.person_a', 'home')
+                        or is_state('person.person_b', 'home')) }}
+          sequence:
+            - action: switch.turn_off
+              target:
+                entity_id: switch.living_room_privacy_mode
+            - wait_template: >-
+                {{ is_state('person.person_a', 'home')
+                   or is_state('person.person_b', 'home') }}
+              timeout:
+                seconds: 45
+              continue_on_timeout: true
+            - choose:
+                # Someone came home: back to private, no message.
+                # REQUIRED here: in `single` mode, the `arrival` trigger fired
+                # during the wait is dropped.
+                - conditions:
+                    - condition: template
+                      value_template: >-
+                        {{ is_state('person.person_a', 'home')
+                           or is_state('person.person_b', 'home') }}
+                  sequence:
+                    - action: switch.turn_on
+                      target:
+                        entity_id: switch.living_room_privacy_mode
+              default:
+                - action: telegram_bot.send_message
+                  data:
+                    message: >-
+                      ⚠️ ALERT: the front door just opened and nobody is
+                      confirmed home. The camera has been re-enabled.
+  mode: single
+
+# -----------------------------------------------------------------------------
+# 2. Intrusion alert, in two stages: text first, then images
+# -----------------------------------------------------------------------------
+#  Its entity_id (`automation.security_intrusion_alert`) is watched by
+#  automation 5: check it after import, it derives from the alias.
+- id: camera_intrusion_alert
+  alias: Security - Intrusion alert
+  description: >-
+    Person detected by the camera while nobody is confirmed home: 45 s grace,
+    then the alert text ALONE, then 3 photos, then a 120 s clip saved on the
+    server.
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.living_room_person
+      to: "on"
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.presence_known
+      state: "on"
+    - condition: template
+      value_template: >-
+        {{ not (is_state('person.person_a', 'home')
+                or is_state('person.person_b', 'home')) }}
+  actions:
+    # Same grace as the door: the person coming home is not filmed.
+    - wait_template: >-
+        {{ is_state('person.person_a', 'home')
+           or is_state('person.person_b', 'home') }}
+      timeout:
+        seconds: 45
+      continue_on_timeout: true
+    - condition: template
+      value_template: >-
+        {{ not (is_state('person.person_a', 'home')
+                or is_state('person.person_b', 'home')) }}
+    - variables:
+        ts: "{{ now().strftime('%Y%m%d_%H%M%S') }}"
+    # Stage 1: the text is sent ALONE. As the caption of the first photo, it was
+    # lost whenever the photo was not written in time.
+    - action: telegram_bot.send_message
+      continue_on_error: true
+      data:
+        parse_mode: plain_text
+        message: >-
+          ⚠️ INTRUSION ALERT: a person was detected at home and nobody is
+          confirmed there. Photos and video recording in progress...
+    # Stage 2: 3 photos, about 15 s apart.
+    - repeat:
+        count: 3
+        sequence:
+          - variables:
+              photo_ts: "{{ now().strftime('%Y%m%d_%H%M%S') }}"
+          - action: camera.snapshot
+            continue_on_error: true
+            target:
+              entity_id: camera.living_room_snapshots_clear
+            data:
+              filename: /media/reolink/photo_{{ photo_ts }}.jpg
+          - delay:
+              seconds: 1
+          - action: telegram_bot.send_photo
+            continue_on_error: true
+            data:
+              file: /media/reolink/photo_{{ photo_ts }}.jpg
+              caption: "📸 Photo {{ repeat.index }}/3 - intrusion"
+          - delay:
+              seconds: 14
+    # Then 120 s of video from the main stream. `camera.record` BLOCKS until
+    # done: it runs last, and automation 5 watches it.
+    - action: camera.record
+      continue_on_error: true
+      target:
+        entity_id: camera.living_room_clear
+      data:
+        filename: /media/reolink/video_{{ ts }}.mp4
+        duration: 120
+  # single: one intrusion, one complete recording. In `restart`, every new
+  # detection would restart the grace period and cut the video.
+  mode: single
+  max_exceeded: silent
+
+# -----------------------------------------------------------------------------
+# 3. Unknown presence: a warning instead of a wrong arming
+# -----------------------------------------------------------------------------
+- id: camera_presence_unknown
+  alias: Security - Presence unknown (camera will not arm)
+  description: >-
+    Warns when Home Assistant can no longer tell who is home. In that state,
+    the automations refuse to arm the camera rather than decide on no data.
+  triggers:
+    - id: unknown
+      trigger: state
+      entity_id: binary_sensor.presence_known
+      to: "off"
+      for:
+        minutes: 5
+    - id: restored
+      trigger: state
+      entity_id: binary_sensor.presence_known
+      to: "on"
+      for:
+        minutes: 1
+  conditions: []
+  actions:
+    - choose:
+        - conditions:
+            - condition: trigger
+              id: unknown
+          sequence:
+            - action: telegram_bot.send_message
+              data:
+                parse_mode: html
+                message: >-
+                  🟠 Presence UNKNOWN for 5 min: Home Assistant cannot tell who
+                  is home. Detail: {{
+                  state_attr('binary_sensor.presence_known', 'detail') }}.
+                  The camera will not arm until this is fixed. Most likely
+                  cause: the router integration failed to load.
+        - conditions:
+            - condition: trigger
+              id: restored
+          sequence:
+            - action: telegram_bot.send_message
+              data:
+                parse_mode: html
+                message: >-
+                  🟢 Presence restored. Camera back to normal behaviour.
+  mode: single
+
+# -----------------------------------------------------------------------------
+# 4. Router safety net: the home is empty and `person` did not notice
+# -----------------------------------------------------------------------------
+#  Case covered: the router saw the phones leave, but a person stayed "home"
+#  because of a silent GPS (stale fix wins over the router's `not_home`).
+#  STRICTLY ADDITIVE: it can arm EARLIER, it never disarms anything.
+#  45 min = three times the longest router dropout measured with people home.
+#  At night the router loses sleeping phones for hours and a still GPS sends
+#  nothing: hence the required PROOF OF DEPARTURE, a door opening between
+#  60 min before and 2 min after the phones disappeared.
+#  Replayed on history: 4 false nights rejected, 3 real departures kept.
+#  Tried and removed: `request_location_update` (no reply within 90 s).
+- id: camera_router_safety_net
+  alias: Security - Router safety net (home empty, person.* missed it)
+  description: >-
+    The router has seen no phone for 45 min, no recent GPS says "home", and the
+    door opened just before: camera armed and lights off. It only speaks when
+    it actually caught something.
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.home_empty_per_router
+      to: "on"
+      for:
+        minutes: 45
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.presence_known
+      state: "on"
+    # No FRESH GPS fix (under 45 min = 2700 s) says "home".
+    - condition: template
+      value_template: >-
+        {{ not ((is_state('device_tracker.phone_a_gps', 'home')
+                 and (now() - states.device_tracker.phone_a_gps.last_updated).total_seconds() < 2700)
+                or (is_state('device_tracker.phone_b_gps', 'home')
+                    and (now() - states.device_tracker.phone_b_gps.last_updated).total_seconds() < 2700)) }}
+    # Proof of departure: a door opening between 60 min before and 2 min after
+    # the moment the router lost the phones.
+    - condition: template
+      value_template: >-
+        {% set door = as_timestamp(states('sensor.front_door_last_opened'), 0) %}
+        {% set empty = as_timestamp(states.binary_sensor.home_empty_per_router.last_changed, 0) %}
+        {{ empty - 3600 <= door <= empty + 120 }}
+  actions:
+    # Acts, and speaks, only if the camera was still private.
+    - if:
+        - condition: state
+          entity_id: switch.living_room_privacy_mode
+          state: "on"
+      then:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.living_room_privacy_mode
+        - action: telegram_bot.send_message
+          continue_on_error: true
+          data:
+            parse_mode: plain_text
+            message: >-
+              🛡️ Router safety net: the router has seen nobody home for 45 min,
+              but Home Assistant still thought someone was there. Camera ARMED
+              and lights off (the door opened just before the phones left).
+              Detail: {{ state_attr('binary_sensor.home_empty_per_router', 'detail') }}
+        # Lights go off ONLY if it actually arms.
+        - action: light.turn_off
+          target:
+            entity_id: light.all_lights
+  mode: single
+
+# -----------------------------------------------------------------------------
+# 5. Watchdog: the intrusion alert must not stay stuck silently
+# -----------------------------------------------------------------------------
+#  The alert runs in `single` mode: if `camera.record` hangs, it stays
+#  "running" and NO further intrusion is reported, with no indicator.
+#  A normal run lasts ~3 min (45 s + photos + 120 s of video). Beyond 10 min
+#  it is stuck: turn off (cancels the stuck run), turn on, and send a message.
+#  Also covers the automation becoming unavailable. Run manually = test.
+- id: camera_intrusion_alert_watchdog
+  alias: Monitoring - Intrusion alert stuck
+  description: >-
+    Restarts the intrusion alert if it stays running for more than 10 min, or
+    becomes unavailable, and reports it.
+  triggers:
+    - trigger: template
+      value_template: >-
+        {{ states('automation.security_intrusion_alert') in ['unavailable', 'unknown']
+           or (state_attr('automation.security_intrusion_alert', 'current') | int(0)) > 0 }}
+      for:
+        minutes: 10
+  conditions: []
+  actions:
+    - variables:
+        test: "{{ trigger.platform != 'template' }}"
+        state_before: "{{ states('automation.security_intrusion_alert') }}"
+    - action: automation.turn_off
+      continue_on_error: true
+      target:
+        entity_id: automation.security_intrusion_alert
+      data:
+        stop_actions: true
+    - delay:
+        seconds: 2
+    - action: automation.turn_on
+      continue_on_error: true
+      target:
+        entity_id: automation.security_intrusion_alert
+    - delay:
+        seconds: 2
+    - action: telegram_bot.send_message
+      data:
+        message: >-
+          {{ '(manual TEST, nothing was stuck) ' if test else '' }}⚠️ Intrusion alert:
+          {% if state_before in ['unavailable', 'unknown'] %}the automation has been
+          UNAVAILABLE for 10 min: no intrusion would be reported.{% else %}it was
+          STUCK running for 10 min (video recording hung?): no intrusion would have
+          been reported. Restarted automatically.{% endif %} State
+          now: {{ states('automation.security_intrusion_alert') }}.
+  mode: single

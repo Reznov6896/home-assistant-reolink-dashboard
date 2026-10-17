@@ -1,0 +1,79 @@
+# =============================================================================
+#  The three template sensors the camera arming depends on
+# =============================================================================
+#  Install as a Home Assistant package (`packages/` folder): the `template:`
+#  key below merges with the existing one.
+#
+#  To ADD an entity to an existing `- binary_sensor:` block, add a `- name:` to
+#  the list already there. Re-creating the `- binary_sensor:` key one level
+#  deeper nests it inside the first one: `check_config` then reports
+#  "'binary_sensor' is an invalid option for 'template'" and the WHOLE block
+#  fails to load, camera guard included.
+# =============================================================================
+template:
+  - binary_sensor:
+      # ---- Presence known ---------------------------------------------------
+      # "Is Home Assistant even ABLE to tell who is home?"
+      # Answering "nobody is home" (the only answer that arms) requires
+      # certainty about EACH person: a single `unknown` invalidates it.
+      # "Someone is home" would only need one `home`: that asymmetry is why
+      # this is an `and`.
+      # Last condition: at Home Assistant startup, a router tracker can publish
+      # `not_home` WITH `in_zones: [zone.home]`. `person` ranks that tracker
+      # above GPS, and the person looks away while home. While the
+      # contradiction lasts, presence is unknown.
+      - name: "Presence known"
+        unique_id: camera_presence_known
+        device_class: connectivity
+        icon: mdi:account-question
+        state: >-
+          {{ states('person.person_a') in ['home', 'not_home']
+             and states('person.person_b') in ['home', 'not_home']
+             and not (is_state('device_tracker.phone_a_router', 'not_home')
+                      and (state_attr('device_tracker.phone_a_router', 'in_zones') or []) | count > 0)
+             and not (is_state('device_tracker.phone_b_router', 'not_home')
+                      and (state_attr('device_tracker.phone_b_router', 'in_zones') or []) | count > 0) }}
+        attributes:
+          # Quoted as-is in the "presence unknown" message.
+          detail: >-
+            person_a={{ states('person.person_a') }} ·
+            person_b={{ states('person.person_b') }} ·
+            router: a={{ states('device_tracker.phone_a_router') }},
+            b={{ states('device_tracker.phone_b_router') }}
+
+      # ---- Home empty per router --------------------------------------------
+      # No phone is seen by the router. Used by the safety net: Home Assistant
+      # only trusts a router tracker when it says `home`; otherwise it falls back
+      # to GPS, which can be hours old. A stale GPS then beats a correct router.
+      # GPS is NOT removed from the persons: it protects against Wi-Fi dropouts,
+      # which would arm the camera on an occupant.
+      - name: "Home empty per router"
+        unique_id: camera_home_empty_per_router
+        icon: mdi:home-export-outline
+        state: >-
+          {{ not (is_state('device_tracker.phone_a_router', 'home')
+                  or is_state('device_tracker.phone_b_router', 'home')) }}
+        attributes:
+          # Age of each GPS fix, in minutes: that is what explains a mismatch.
+          detail: >-
+            router a={{ states('device_tracker.phone_a_router') }} ·
+            router b={{ states('device_tracker.phone_b_router') }} ·
+            GPS a={{ states('device_tracker.phone_a_gps') }}
+            ({{ ((now() - states.device_tracker.phone_a_gps.last_updated).total_seconds() / 60) | round(0) }} min) ·
+            GPS b={{ states('device_tracker.phone_b_gps') }}
+            ({{ ((now() - states.device_tracker.phone_b_gps.last_updated).total_seconds() / 60) | round(0) }} min)
+
+  # ---- Front door last opened -----------------------------------------------
+  # The safety net's PROOF OF DEPARTURE: nobody leaves without opening the door.
+  # Trigger-based sensor: it KEEPS its value across restarts, whereas the
+  # door's `last_changed` is reset to startup time (it would fake an opening).
+  - trigger:
+      - trigger: state
+        entity_id: binary_sensor.front_door
+        to: "on"
+    sensor:
+      - name: "Front door last opened"
+        unique_id: camera_front_door_last_opened
+        device_class: timestamp
+        icon: mdi:door-open
+        state: "{{ now().isoformat() }}"

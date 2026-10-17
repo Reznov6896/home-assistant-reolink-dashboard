@@ -1,0 +1,349 @@
+# Security view + fullscreen camera view.
+# Two views to place under `views:` of a YAML-mode dashboard; `/lovelace/` = your dashboard path.
+# Entities: prefix `living_room_` = the camera's device name in the Reolink integration ("Living room").
+# `custom:ptt-camera-card` needs the /local/ptt-camera-card.js resource (module) and the WebRTC Camera integration.
+  - title: Security
+    path: security
+    icon: mdi:shield-home
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Living room camera
+            icon: mdi:cctv
+          - type: picture-glance
+            title: Living room
+            camera_image: camera.living_room_fluent
+            camera_view: live
+            grid_options:
+              columns: full
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/camera-fullscreen
+            hold_action:
+              action: more-info
+            entities:
+              - entity: switch.living_room_privacy_mode
+                name: Privacy mode
+              - entity: binary_sensor.living_room_person
+                name: Person
+              - entity: binary_sensor.living_room_motion
+                name: Motion
+          - type: button
+            grid_options:
+              columns: 12
+              rows: 2
+            name: Fullscreen (live)
+            icon: mdi:fullscreen
+            show_state: false
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/camera-fullscreen
+          - type: tile
+            grid_options:
+              columns: 12
+              rows: 2
+            entity: switch.living_room_privacy_mode
+            name: Privacy mode (camera off)
+            icon: mdi:eye-off
+          - type: tile
+            grid_options:
+              columns: 12
+              rows: 2
+            entity: select.living_room_day_night_mode
+            name: Image — auto / color / black & white
+            icon: mdi:theme-light-dark
+          - type: tile
+            grid_options:
+              columns: 12
+              rows: 2
+            entity: sensor.living_room_day_night_state
+            name: Actual image mode
+            icon: mdi:weather-night
+          - type: tile
+            grid_options:
+              columns: 12
+              rows: 2
+            entity: switch.living_room_infrared_lights_in_night_mode
+            name: IR lights at night
+            icon: mdi:led-on
+          - type: tile
+            grid_options:
+              columns: 12
+              rows: 2
+            entity: light.living_room_status_led
+            name: Status LED
+            icon: mdi:led-outline
+
+      - type: grid
+        column_span: 1
+        cards:
+          - type: heading
+            heading: PTZ
+            icon: mdi:axis-arrow
+          - type: horizontal-stack
+            grid_options:
+              columns: full
+            cards:
+              - type: button
+                name: ""
+                icon: mdi:blank
+                show_state: false
+                tap_action:
+                  action: none
+              - type: button
+                entity: button.living_room_ptz_up
+                name: Up
+                icon: mdi:arrow-up-bold
+                show_state: false
+                tap_action:
+                  action: perform-action
+                  perform_action: script.camera_ptz_up
+              - type: button
+                name: ""
+                icon: mdi:blank
+                show_state: false
+                tap_action:
+                  action: none
+          - type: horizontal-stack
+            grid_options:
+              columns: full
+            cards:
+              - type: button
+                entity: button.living_room_ptz_left
+                name: Left
+                icon: mdi:arrow-left-bold
+                show_state: false
+                tap_action:
+                  action: perform-action
+                  perform_action: script.camera_ptz_left
+              - type: button
+                entity: button.living_room_ptz_stop
+                name: Stop
+                icon: mdi:stop-circle-outline
+                show_state: false
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target:
+                    entity_id: button.living_room_ptz_stop
+              - type: button
+                entity: button.living_room_ptz_right
+                name: Right
+                icon: mdi:arrow-right-bold
+                show_state: false
+                tap_action:
+                  action: perform-action
+                  perform_action: script.camera_ptz_right
+          - type: horizontal-stack
+            grid_options:
+              columns: full
+            cards:
+              - type: button
+                name: ""
+                icon: mdi:blank
+                show_state: false
+                tap_action:
+                  action: none
+              - type: button
+                entity: button.living_room_ptz_down
+                name: Down
+                icon: mdi:arrow-down-bold
+                show_state: false
+                tap_action:
+                  action: perform-action
+                  perform_action: script.camera_ptz_down
+              - type: button
+                name: ""
+                icon: mdi:blank
+                show_state: false
+                tap_action:
+                  action: none
+          - type: tile
+            entity: sensor.living_room_ptz_pan_position
+            name: Pan position
+            icon: mdi:arrow-left-right
+          - type: tile
+            entity: sensor.living_room_ptz_tilt_position
+            name: Tilt position
+            icon: mdi:arrow-up-down
+          - type: heading
+            heading: Guard position
+            icon: mdi:home-map-marker
+          - type: button
+            entity: button.living_room_guard_set_current_position
+            name: Save current position
+            icon: mdi:content-save-move
+            show_state: false
+            grid_options:
+              columns: full
+            tap_action:
+              action: perform-action
+              perform_action: button.press
+              target:
+                entity_id: button.living_room_guard_set_current_position
+              confirmation:
+                text: "Save the CURRENT position as guard position? The previous one is overwritten."
+          - type: tile
+            entity: button.living_room_guard_go_to
+            name: Go to guard position
+            icon: mdi:home-import-outline
+            grid_options:
+              columns: full
+            tap_action:
+              action: perform-action
+              perform_action: button.press
+              target:
+                entity_id: button.living_room_guard_go_to
+          - type: tile
+            entity: switch.living_room_guard_return
+            name: Auto-return
+          - type: tile
+            entity: number.living_room_guard_return_time
+            name: Return delay
+          - type: tile
+            entity: switch.living_room_auto_tracking
+            name: Auto-tracking
+            icon: mdi:crosshairs-gps
+            grid_options:
+              columns: full
+          - type: tile
+            entity: button.living_room_ptz_calibrate
+            name: Calibrate PTZ
+            icon: mdi:tune
+            grid_options:
+              columns: full
+            tap_action:
+              action: perform-action
+              perform_action: button.press
+              target:
+                entity_id: button.living_room_ptz_calibrate
+              confirmation:
+                text: "Calibrate PTZ? The camera sweeps its full range for about ten seconds."
+
+      - type: grid
+        column_span: 1
+        cards:
+          - type: heading
+            heading: Detection
+            icon: mdi:motion-sensor
+          - type: tile
+            entity: binary_sensor.front_door
+            name: Front door
+            icon: mdi:door
+          - type: tile
+            entity: binary_sensor.living_room_person
+            name: Person
+          - type: tile
+            entity: binary_sensor.living_room_motion
+            name: Motion
+          - type: tile
+            entity: binary_sensor.living_room_animal
+            name: Animal
+          - type: tile
+            entity: binary_sensor.living_room_baby_crying
+            name: Baby crying
+          - type: heading
+            heading: Sensitivity
+            icon: mdi:tune-vertical
+          - type: tile
+            entity: number.living_room_motion_sensitivity
+            name: Motion
+          - type: tile
+            entity: number.living_room_ai_person_sensitivity
+            name: Person (AI)
+          - type: tile
+            entity: number.living_room_ai_animal_sensitivity
+            name: Animal (AI)
+      - type: grid
+        column_span: 1
+        cards:
+          - type: heading
+            heading: Siren
+            icon: mdi:bullhorn
+          - type: button
+            entity: siren.living_room_siren
+            name: Trigger siren
+            icon: mdi:bullhorn
+            show_state: true
+            grid_options:
+              columns: full
+            tap_action:
+              action: perform-action
+              perform_action: siren.turn_on
+              target:
+                entity_id: siren.living_room_siren
+              confirmation:
+                text: "Trigger the camera siren?"
+          - type: button
+            name: Stop siren
+            icon: mdi:volume-off
+            show_state: false
+            grid_options:
+              columns: full
+            tap_action:
+              action: perform-action
+              perform_action: siren.turn_off
+              target:
+                entity_id: siren.living_room_siren
+          - type: tile
+            entity: number.living_room_volume
+            name: Siren volume
+            icon: mdi:volume-high
+            grid_options:
+              columns: full
+          - type: tile
+            entity: switch.living_room_siren_on_event
+            name: Siren on detection
+            grid_options:
+              columns: full
+          - type: heading
+            heading: Alerts
+            icon: mdi:bell-ring
+          - type: tile
+            entity: switch.living_room_push_notifications
+            name: Phone notifications
+            grid_options:
+              columns: full
+          - type: tile
+            entity: switch.living_room_email_on_event
+            name: Email alerts
+            grid_options:
+              columns: full
+          - type: heading
+            heading: Capture
+            icon: mdi:camera-iris
+          - type: button
+            name: Take snapshot
+            icon: mdi:camera
+            show_state: false
+            grid_options:
+              columns: full
+            tap_action:
+              action: perform-action
+              perform_action: script.camera_take_snapshot
+              confirmation:
+                text: "Take a snapshot? If privacy mode is on, it is lifted for the capture (about 30 s) and restored."
+          - type: button
+            name: Record 2 minutes
+            icon: mdi:record-rec
+            show_state: false
+            grid_options:
+              columns: full
+            tap_action:
+              action: perform-action
+              perform_action: script.camera_record_clip
+              confirmation:
+                text: "Record a 2-minute clip? If privacy mode is on, it is lifted for the recording and restored."
+
+  - title: Camera fullscreen
+    path: camera-fullscreen
+    icon: mdi:fullscreen
+    subview: true
+    type: panel
+    cards:
+      - type: custom:ptt-camera-card
+        url: living_room
