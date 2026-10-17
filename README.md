@@ -44,7 +44,7 @@ A Reolink camera only accepts a few simultaneous RTSP sessions ([integration doc
   |---|---|---|---|
   | H.264 High | 896 × 512 | 15 fps | ~300 kbit/s |
 
-- **Main stream (2880 × 1616) for captures only**: snapshot from the HTTP snapshot endpoint, clip from the *Clear* stream.
+- **Main stream for captures only** (measured on a test clip: H.264 2560 × 1440 + AAC): snapshot from the HTTP snapshot endpoint, 2-minute clip from the *Clear* stream.
 - **Wake-up delay**: leaving privacy mode, the camera reopens its API then its streams (6 s measured for the API, up to ~30 s for streams). Recording too early can hang `camera.record`, so the capture scripts wait for the entity before capturing.
 
 ## PTZ pulses
