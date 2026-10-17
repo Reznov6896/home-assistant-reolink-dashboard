@@ -2,6 +2,8 @@
 
 A Home Assistant dashboard that replaces the Reolink app for a PTZ camera: live view, push-to-talk, PTZ, guard position, detection settings, siren, snapshots and clips. Local only, no Reolink cloud.
 
+> Configuration to adapt (dashboard views, scripts, one custom card), not a one-click HACS integration. Entity IDs assume a Reolink device named `Living room`.
+
 ![Dashboard (live view hidden)](screenshots/dashboard-full.jpg)
 
 ## Features
