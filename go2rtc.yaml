@@ -1,0 +1,20 @@
+# go2rtc: a single RTSP session to the camera, on its sub stream.
+# The second source adds the ONVIF audio backchannel (camera speaker) used by ptt-camera-card.js:
+# a DESCRIBE with `Require: www.onvif.org/ver20/backchannel` exposes an extra sendonly PCMU track.
+# This file holds the camera password: keep it readable by its owner only (chmod 600).
+streams:
+  living_room:
+    - rtsp://USER:PASSWORD@CAMERA_IP:554/h264Preview_01_sub
+    - "rtsp://USER:PASSWORD@CAMERA_IP:554/h264Preview_01_sub#backchannel=1"
+
+# Without credentials, GET /api/streams returns the full source URLs, camera password included,
+# to any client that can reach port 1984. Never remove them.
+api:
+  listen: ":1984"
+  username: CHANGE_ME
+  password: CHANGE_ME
+
+webrtc:
+  candidates:
+    - SERVER_IP:8555
+    - stun:8555
