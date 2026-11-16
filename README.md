@@ -17,7 +17,7 @@ A Home Assistant dashboard that replaces the Reolink app for a PTZ camera: live 
 
 | Block | Controls |
 |---|---|
-| Live view | preview, fullscreen WebRTC view with a **push-to-talk** button |
+| Live view | preview, fullscreen WebRTC view with a **push-to-talk** button; a one-line notice replaces the frame while privacy mode is on or the camera is offline |
 | Image | privacy mode, day/night mode, actual day/night state, IR lights, status LED |
 | PTZ | D-pad with Stop in the centre (250 ms pulses), pan/tilt position |
 | Guard position | save current position, go to, auto-return and delay, auto-tracking, PTZ calibration |
@@ -28,9 +28,10 @@ A Home Assistant dashboard that replaces the Reolink app for a PTZ camera: live 
 
 ## Requirements
 
-- Home Assistant 2026.10 (tested), core [Reolink integration](https://www.home-assistant.io/integrations/reolink/)
+- Home Assistant 2026.11 (tested), core [Reolink integration](https://www.home-assistant.io/integrations/reolink/)
 - [go2rtc](https://github.com/AlexxIT/go2rtc) (standalone) and [WebRTC Camera](https://github.com/AlexxIT/WebRTC) 3.6.1 (serves `video-rtc.js`)
 - HTTPS access to Home Assistant: browsers only expose the microphone in a secure context
+- Optional: [card-mod](https://github.com/thomasloven/lovelace-card-mod), to centre the title and hide the blank cells of the PTZ pad
 - Tested with a Reolink E330 (indoor PTZ, Wi-Fi)
 
 ## Installation
